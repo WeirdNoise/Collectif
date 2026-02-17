@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Edit3, Image as ImageIcon, Download, ChevronRight, UploadCloud } from 'lucide-react';
-import { toPng } from 'html-to-image';
+import { toBlob } from 'html-to-image';
 import { CandidateProfile, Step } from './types';
 import { CardTemplate } from './components/CardTemplate';
 import { ImageEditor } from './components/ImageEditor';
@@ -122,14 +122,19 @@ export default function App() {
     if (ref.current) {
       try {
         await document.fonts.ready;
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // Compatibilité Firefox : délai pour s'assurer que le rendu est stable avant capture
+        await new Promise(resolve => setTimeout(resolve, 250));
 
-        const dataUrl = await toPng(ref.current, { 
-          cacheBust: false, 
+        // Note de compatibilité : Utilisation de toBlob au lieu de toPng/toDataURL.
+        // Firefox gère mieux les Blobs pour les grands canvas et évite les erreurs de string trop longues.
+        const blob = await toBlob(ref.current, { 
+          cacheBust: true, // Force le rechargement des ressources pour éviter le cache corrompu
           pixelRatio: 2,
           skipAutoScale: true,
           backgroundColor: '#ffffff',
+          useCORS: true, // CRITIQUE pour Firefox : autorise le chargement cross-origin si nécessaire
           filter: (node) => {
+             // Filtrage des CSS externes Google Fonts pour éviter les erreurs CORS bloquantes
              if (node instanceof HTMLElement && node.tagName === 'LINK' && (node as HTMLLinkElement).rel === 'stylesheet') {
                const href = (node as HTMLLinkElement).href;
                if (href && href.includes('fonts.googleapis.com')) {
@@ -140,16 +145,31 @@ export default function App() {
           }
         });
         
+        if (!blob) {
+            throw new Error("La génération de l'image a échoué (Blob vide).");
+        }
+        
+        const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         const safeLastName = (data.lastName || 'Nom').trim().replace(/[^a-zA-Z0-9àâäéèêëîïôöùûüçñÀÂÄÉÈÊËÎÏÔÖÙÛÜÇÑ]/g, '_');
         const safeFirstName = (data.firstName || 'Prenom').trim().replace(/[^a-zA-Z0-9àâäéèêëîïôöùûüçñÀÂÄÉÈÊËÎÏÔÖÙÛÜÇÑ]/g, '_');
         
         link.download = `${safeLastName}-${safeFirstName}-${destination}.png`;
-        link.href = dataUrl;
+        link.href = url;
+        
+        // Compatibilité Firefox : Le lien DOIT être ajouté au DOM pour que le clic fonctionne
+        document.body.appendChild(link);
         link.click();
+        
+        // Nettoyage propre
+        setTimeout(() => {
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        }, 100);
+
       } catch (err) {
         console.error('Failed to generate image', err);
-        alert('Erreur lors de la création de l\'image. Veuillez réessayer.');
+        alert(`Erreur lors de la création de l'image (Firefox compatible): ${err instanceof Error ? err.message : 'Erreur inconnue'}`);
       } finally {
         setIsGenerating(false);
       }

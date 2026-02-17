@@ -1,10 +1,9 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Camera, Edit3, Image as ImageIcon, Download, Check, ChevronRight, UploadCloud, Wand2, Loader2, RefreshCw, Sparkles } from 'lucide-react';
+import { Camera, Edit3, Image as ImageIcon, Download, Check, ChevronRight, UploadCloud, Wand2, Loader2, RefreshCw } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { CandidateProfile, Step } from './types';
 import { CardTemplate } from './components/CardTemplate';
 import { analyzeAndNormalizeImage } from './services/imageProcessing';
-import { restorePhotoWithAI } from './services/geminiService';
 
 const INITIAL_PROFILE: CandidateProfile = {
   firstName: '',
@@ -32,7 +31,6 @@ export default function App() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [isRestoring, setIsRestoring] = useState(false);
 
   // Refs for generating images (attached to off-screen elements)
   const refA4 = useRef<HTMLDivElement>(null);
@@ -102,42 +100,6 @@ export default function App() {
         setData(prev => ({ ...prev, photoFilter: filter || 'brightness(1.1) contrast(1.1)' }));
         setIsAnalyzing(false);
       });
-    }
-  };
-
-  const handleAiRestore = async () => {
-    if (!data.photoUrl || isRestoring) return;
-    
-    setIsRestoring(true);
-    try {
-      // 1. Fetch the blob from the current object URL
-      const response = await fetch(data.photoUrl);
-      const blob = await response.blob();
-      
-      // 2. Convert to Base64
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64data = reader.result as string;
-        // Extract pure base64 part (remove "data:image/xyz;base64,")
-        const base64Content = base64data.split(',')[1];
-        const mimeType = base64data.split(';')[0].split(':')[1];
-
-        try {
-          // 3. Call AI Service
-          const newImageUrl = await restorePhotoWithAI(base64Content, mimeType);
-          
-          // 4. Update State with new image and reset filters (since the new image is already perfect)
-          setData(prev => ({ ...prev, photoUrl: newImageUrl, photoFilter: '' }));
-        } catch (error) {
-          alert("Erreur lors de la restauration IA. Vérifiez votre clé API ou réessayez.");
-        } finally {
-          setIsRestoring(false);
-        }
-      };
-      reader.readAsDataURL(blob);
-    } catch (e) {
-      console.error(e);
-      setIsRestoring(false);
     }
   };
 
@@ -349,13 +311,12 @@ export default function App() {
 
                 {/* Enhancement Controls */}
                 {data.photoUrl && (
-                  <div className="flex flex-col sm:flex-row justify-center mt-4 gap-3">
-                    {/* Basic Optimization (CSS) */}
+                  <div className="flex justify-center mt-4">
                     <button
                       onClick={toggleEnhancement}
-                      disabled={isAnalyzing || isRestoring}
+                      disabled={isAnalyzing}
                       className={`
-                        flex items-center justify-center space-x-2 px-4 py-2 rounded-full text-sm font-medium transition-all
+                        flex items-center space-x-2 px-4 py-2 rounded-full text-sm font-medium transition-all
                         ${data.photoFilter 
                           ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/50 ring-2 ring-indigo-400' 
                           : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}
@@ -367,26 +328,7 @@ export default function App() {
                          <Wand2 className={`w-4 h-4 ${data.photoFilter ? 'text-yellow-300 fill-yellow-300' : ''}`} />
                       )}
                       <span>
-                        {isAnalyzing ? 'Analyse...' : (data.photoFilter ? 'Optimisation active' : 'Filtre Auto (CSS)')}
-                      </span>
-                    </button>
-
-                    {/* AI Restoration (Gemini) */}
-                    <button
-                      onClick={handleAiRestore}
-                      disabled={isRestoring || isAnalyzing}
-                      className={`
-                        flex items-center justify-center space-x-2 px-4 py-2 rounded-full text-sm font-medium transition-all border border-indigo-500/30
-                        bg-gradient-to-r from-purple-900/50 to-indigo-900/50 text-indigo-200 hover:text-white hover:from-purple-800 hover:to-indigo-800
-                      `}
-                    >
-                      {isRestoring ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Sparkles className="w-4 h-4 text-purple-400" />
-                      )}
-                      <span>
-                        {isRestoring ? 'Restauration en cours...' : 'Restauration IA (Studio)'}
+                        {isAnalyzing ? 'Analyse...' : (data.photoFilter ? 'Optimisation active' : 'Optimiser la photo')}
                       </span>
                     </button>
                   </div>

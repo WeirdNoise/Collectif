@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Edit3, Image as ImageIcon, Download, ChevronRight, UploadCloud } from 'lucide-react';
+import { Edit3, Image as ImageIcon, Download, ChevronRight, UploadCloud, Package } from 'lucide-react';
 import { toBlob } from 'html-to-image';
 import { CandidateProfile, Step } from './types';
 import { CardTemplate } from './components/CardTemplate';
@@ -103,10 +103,8 @@ export default function App() {
     }
   };
 
-  const downloadImage = useCallback(async (format: 'a4' | 'story' | 'square') => {
-    if (isGenerating) return;
-    setIsGenerating(true);
-
+  // Core generation logic (does not handle state)
+  const generateAndDownload = useCallback(async (format: 'a4' | 'story' | 'square') => {
     let ref = refA4;
     let destination = 'Impression';
 
@@ -119,64 +117,87 @@ export default function App() {
       destination = 'Instagram';
     }
 
-    if (ref.current) {
-      try {
-        await document.fonts.ready;
-        // Compatibilité Firefox : délai pour s'assurer que le rendu est stable avant capture
-        await new Promise(resolve => setTimeout(resolve, 250));
+    if (!ref.current) return;
 
-        // Note de compatibilité : Utilisation de toBlob au lieu de toPng/toDataURL.
-        // Firefox gère mieux les Blobs pour les grands canvas et évite les erreurs de string trop longues.
-        const blob = await toBlob(ref.current, { 
-          cacheBust: true, // Force le rechargement des ressources pour éviter le cache corrompu
-          pixelRatio: 2,
-          skipAutoScale: true,
-          backgroundColor: '#ffffff',
-          useCORS: true, // CRITIQUE pour Firefox : autorise le chargement cross-origin si nécessaire
-          filter: (node) => {
-             // Filtrage des CSS externes Google Fonts pour éviter les erreurs CORS bloquantes
-             if (node instanceof HTMLElement && node.tagName === 'LINK' && (node as HTMLLinkElement).rel === 'stylesheet') {
-               const href = (node as HTMLLinkElement).href;
-               if (href && href.includes('fonts.googleapis.com')) {
-                 return false;
-               }
+    try {
+      await document.fonts.ready;
+      // Compatibilité Firefox : délai pour s'assurer que le rendu est stable avant capture
+      await new Promise(resolve => setTimeout(resolve, 250));
+
+      // Note de compatibilité : Utilisation de toBlob au lieu de toPng/toDataURL.
+      const blob = await toBlob(ref.current, { 
+        cacheBust: true,
+        pixelRatio: 2,
+        skipAutoScale: true,
+        backgroundColor: '#ffffff',
+        useCORS: true,
+        filter: (node) => {
+           if (node instanceof HTMLElement && node.tagName === 'LINK' && (node as HTMLLinkElement).rel === 'stylesheet') {
+             const href = (node as HTMLLinkElement).href;
+             if (href && href.includes('fonts.googleapis.com')) {
+               return false;
              }
-             return true;
-          }
-        });
-        
-        if (!blob) {
-            throw new Error("La génération de l'image a échoué (Blob vide).");
+           }
+           return true;
         }
-        
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        const safeLastName = (data.lastName || 'Nom').trim().replace(/[^a-zA-Z0-9àâäéèêëîïôöùûüçñÀÂÄÉÈÊËÎÏÔÖÙÛÜÇÑ]/g, '_');
-        const safeFirstName = (data.firstName || 'Prenom').trim().replace(/[^a-zA-Z0-9àâäéèêëîïôöùûüçñÀÂÄÉÈÊËÎÏÔÖÙÛÜÇÑ]/g, '_');
-        
-        link.download = `${safeLastName}-${safeFirstName}-${destination}.png`;
-        link.href = url;
-        
-        // Compatibilité Firefox : Le lien DOIT être ajouté au DOM pour que le clic fonctionne
-        document.body.appendChild(link);
-        link.click();
-        
-        // Nettoyage propre
-        setTimeout(() => {
-            document.body.removeChild(link);
-            window.URL.revokeObjectURL(url);
-        }, 100);
+      });
+      
+      if (!blob) throw new Error("La génération de l'image a échoué (Blob vide).");
+      
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const safeLastName = (data.lastName || 'Nom').trim().replace(/[^a-zA-Z0-9àâäéèêëîïôöùûüçñÀÂÄÉÈÊËÎÏÔÖÙÛÜÇÑ]/g, '_');
+      const safeFirstName = (data.firstName || 'Prenom').trim().replace(/[^a-zA-Z0-9àâäéèêëîïôöùûüçñÀÂÄÉÈÊËÎÏÔÖÙÛÜÇÑ]/g, '_');
+      
+      link.download = `${safeLastName}-${safeFirstName}-${destination}.png`;
+      link.href = url;
+      
+      document.body.appendChild(link);
+      link.click();
+      
+      setTimeout(() => {
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(url);
+      }, 100);
 
-      } catch (err) {
-        console.error('Failed to generate image', err);
-        alert(`Erreur lors de la création de l'image (Firefox compatible): ${err instanceof Error ? err.message : 'Erreur inconnue'}`);
-      } finally {
-        setIsGenerating(false);
-      }
-    } else {
+    } catch (err) {
+      console.error('Failed to generate image', err);
+      throw err;
+    }
+  }, [data]);
+
+  // Handle Single Download
+  const handleDownloadSingle = async (format: 'a4' | 'story' | 'square') => {
+    if (isGenerating) return;
+    setIsGenerating(true);
+    try {
+      await generateAndDownload(format);
+    } catch (err) {
+      alert(`Erreur : ${err instanceof Error ? err.message : 'Erreur inconnue'}`);
+    } finally {
       setIsGenerating(false);
     }
-  }, [data, isGenerating]);
+  };
+
+  // Handle All Downloads
+  const handleDownloadAll = async () => {
+    if (isGenerating) return;
+    setIsGenerating(true);
+    try {
+      // Sequential download with delays to prevent browser throttling/blocking
+      await generateAndDownload('a4');
+      await new Promise(r => setTimeout(r, 800));
+      
+      await generateAndDownload('story');
+      await new Promise(r => setTimeout(r, 800));
+      
+      await generateAndDownload('square');
+    } catch (err) {
+      alert(`Erreur lors du téléchargement groupé : ${err instanceof Error ? err.message : 'Erreur inconnue'}`);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   const steps = [
     { id: Step.COLLECT, label: 'Édition', icon: <Edit3 className="w-5 h-5" /> },
@@ -420,17 +441,37 @@ export default function App() {
         {/* Step 2: Generate & Download */}
         {currentStep === Step.GENERATE && (
           <div className="animate-fade-in space-y-8 pb-20">
-             <div className="bg-green-900/30 border-l-4 border-green-500 p-4 rounded-r-lg flex justify-between items-center">
-                <div>
-                  <h3 className="text-green-400 font-bold">Visuels générés !</h3>
-                  <p className="text-green-300/80 text-sm">Cliquez sur les boutons pour télécharger les formats.</p>
-                </div>
-                <button onClick={() => setCurrentStep(Step.COLLECT)} className="text-green-400 underline text-sm hover:text-green-300">
-                  <span className="flex items-center"><Edit3 className="w-3 h-3 mr-1"/> Modifier</span>
-                </button>
+             
+             {/* Header Section with Edit and Download All */}
+             <div className="flex flex-col gap-4">
+               <div className="bg-green-900/30 border-l-4 border-green-500 p-4 rounded-r-lg flex justify-between items-center">
+                  <div>
+                    <h3 className="text-green-400 font-bold">Visuels générés !</h3>
+                    <p className="text-green-300/80 text-sm">Prêts pour l'impression et les réseaux.</p>
+                  </div>
+                  <button onClick={() => setCurrentStep(Step.COLLECT)} className="text-green-400 underline text-sm hover:text-green-300">
+                    <span className="flex items-center"><Edit3 className="w-3 h-3 mr-1"/> Modifier</span>
+                  </button>
+               </div>
+
+               {/* Download All Button */}
+               <button
+                  onClick={handleDownloadAll}
+                  disabled={isGenerating}
+                  className="w-full py-4 bg-domessin-secondary text-slate-900 rounded-xl font-bold text-lg hover:bg-yellow-400 transition-colors shadow-lg flex items-center justify-center space-x-3 disabled:opacity-50 disabled:cursor-not-allowed"
+               >
+                  {isGenerating ? (
+                    <span>Génération en cours...</span>
+                  ) : (
+                    <>
+                      <Package className="w-6 h-6" />
+                      <span>Télécharger le pack complet (3 formats)</span>
+                    </>
+                  )}
+               </button>
              </div>
             
-            {/* Grid of previews (Visually identical but NOT used for export) */}
+            {/* Grid of individual downloads */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               
               {/* A4 Column */}
@@ -443,11 +484,11 @@ export default function App() {
                     </div>
                  </div>
                  <button 
-                    onClick={() => downloadImage('a4')} 
+                    onClick={() => handleDownloadSingle('a4')} 
                     disabled={isGenerating}
                     className="mt-4 w-full py-2 bg-slate-800 text-white rounded-lg flex items-center justify-center hover:bg-slate-700 border border-slate-700 disabled:opacity-50"
                  >
-                    {isGenerating ? 'Génération...' : <><Download className="w-4 h-4 mr-2" /> Télécharger A4</>}
+                    {isGenerating ? '...' : <><Download className="w-4 h-4 mr-2" /> Télécharger A4</>}
                  </button>
               </div>
 
@@ -460,11 +501,11 @@ export default function App() {
                     </div>
                  </div>
                  <button 
-                    onClick={() => downloadImage('story')} 
+                    onClick={() => handleDownloadSingle('story')} 
                     disabled={isGenerating}
                     className="mt-4 w-full py-2 bg-slate-800 text-white rounded-lg flex items-center justify-center hover:bg-slate-700 border border-slate-700 disabled:opacity-50"
                  >
-                    {isGenerating ? 'Génération...' : <><Download className="w-4 h-4 mr-2" /> Télécharger Story</>}
+                    {isGenerating ? '...' : <><Download className="w-4 h-4 mr-2" /> Télécharger Story</>}
                  </button>
               </div>
 
@@ -477,11 +518,11 @@ export default function App() {
                     </div>
                  </div>
                  <button 
-                    onClick={() => downloadImage('square')} 
+                    onClick={() => handleDownloadSingle('square')} 
                     disabled={isGenerating}
                     className="mt-4 w-full py-2 bg-slate-800 text-white rounded-lg flex items-center justify-center hover:bg-slate-700 border border-slate-700 disabled:opacity-50"
                  >
-                    {isGenerating ? 'Génération...' : <><Download className="w-4 h-4 mr-2" /> Télécharger Carré</>}
+                    {isGenerating ? '...' : <><Download className="w-4 h-4 mr-2" /> Télécharger Carré</>}
                  </button>
               </div>
 

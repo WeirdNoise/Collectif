@@ -1,4 +1,3 @@
-
 export enum Step {
   COLLECT = 1,
   GENERATE = 2
@@ -8,7 +7,6 @@ export interface CandidateProfile {
   firstName: string;
   lastName: string;
   photoUrl: string | null;
-  photoFilter: string; // Changed from boolean to string to store calculated CSS filters
   
   // Section 1
   bioTitle: string;

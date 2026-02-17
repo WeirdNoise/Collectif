@@ -1,15 +1,13 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Camera, Edit3, Image as ImageIcon, Download, Check, ChevronRight, UploadCloud, Wand2, Loader2, RefreshCw } from 'lucide-react';
+import { Camera, Edit3, Image as ImageIcon, Download, Check, ChevronRight, UploadCloud } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { CandidateProfile, Step } from './types';
 import { CardTemplate } from './components/CardTemplate';
-import { analyzeAndNormalizeImage } from './services/imageProcessing';
 
 const INITIAL_PROFILE: CandidateProfile = {
   firstName: '',
   lastName: '',
   photoUrl: null,
-  photoFilter: '',
   bioTitle: 'Qui suis-je ?',
   bio: '',
   goalsTitle: 'Mes envies pour la commune',
@@ -30,7 +28,6 @@ export default function App() {
   const [data, setData] = useState<CandidateProfile>(INITIAL_PROFILE);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   // Refs for generating images (attached to off-screen elements)
   const refA4 = useRef<HTMLDivElement>(null);
@@ -38,6 +35,7 @@ export default function App() {
   const refSquare = useRef<HTMLDivElement>(null);
 
   // Inject fonts manually to allow html-to-image to capture them consistently.
+  // This acts as a backup to ensure fonts are "self-hosted" within the generated SVG/Image context.
   useEffect(() => {
     const fontUrl = 'https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Open+Sans:ital,wght@0,400;0,600;1,400&family=Yeseva+One&display=swap';
     
@@ -59,26 +57,10 @@ export default function App() {
     setData(prev => ({ ...prev, [name]: value }));
   };
 
-  const processFile = async (file: File) => {
+  const processFile = (file: File) => {
     if (file && file.type.startsWith('image/')) {
       const url = URL.createObjectURL(file);
-      
-      // Start loading/analysis state
-      setIsAnalyzing(true);
-      
-      // Default state with no filter while analyzing
-      setData(prev => ({ ...prev, photoUrl: url, photoFilter: '' }));
-
-      try {
-        // Automatically calculate optimal filters for consistency
-        const autoFilter = await analyzeAndNormalizeImage(url);
-        setData(prev => ({ ...prev, photoFilter: autoFilter }));
-      } catch (e) {
-        console.error("Auto-enhance failed", e);
-      } finally {
-        setIsAnalyzing(false);
-      }
-
+      setData(prev => ({ ...prev, photoUrl: url }));
     } else {
       alert("Format de fichier non supporté. Veuillez utiliser une image (JPEG, PNG).");
     }
@@ -87,19 +69,6 @@ export default function App() {
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       processFile(e.target.files[0]);
-    }
-  };
-
-  const toggleEnhancement = () => {
-    // If we have a filter, remove it. If we don't, re-analyze (or just apply a generic boost if URL exists)
-    if (data.photoFilter) {
-      setData(prev => ({ ...prev, photoFilter: '' }));
-    } else if (data.photoUrl) {
-      setIsAnalyzing(true);
-      analyzeAndNormalizeImage(data.photoUrl).then(filter => {
-        setData(prev => ({ ...prev, photoFilter: filter || 'brightness(1.1) contrast(1.1)' }));
-        setIsAnalyzing(false);
-      });
     }
   };
 
@@ -139,15 +108,25 @@ export default function App() {
 
     if (ref.current) {
       try {
+        // Ensure fonts are ready before we start
         await document.fonts.ready;
+
+        // Small delay to ensure rendering is stable and layout is finalized
         await new Promise(resolve => setTimeout(resolve, 100));
 
         const dataUrl = await toPng(ref.current, { 
+          // cacheBust can break blob URLs for images, keeping it false is safer for simple usage
           cacheBust: false, 
-          pixelRatio: 2, 
+          pixelRatio: 2, // High res
           skipAutoScale: true,
-          backgroundColor: '#ffffff',
+          backgroundColor: '#ffffff', // Ensure white background
+          
+          // Filter out the external Google Fonts stylesheet from the cloned node.
+          // Since we have 'crossorigin="anonymous"' in index.html, html-to-image CAN read the global rules safely,
+          // but we also have the manual style injection above. 
+          // Filtering the remote link prevents duplication and potential timeouts.
           filter: (node) => {
+             // Check if it's a valid element and a link tag
              if (node instanceof HTMLElement && node.tagName === 'LINK' && (node as HTMLLinkElement).rel === 'stylesheet') {
                const href = (node as HTMLLinkElement).href;
                if (href && href.includes('fonts.googleapis.com')) {
@@ -159,6 +138,8 @@ export default function App() {
         });
         
         const link = document.createElement('a');
+        
+        // Sanitize names for filename
         const safeLastName = (data.lastName || 'Nom').trim().replace(/[^a-zA-Z0-9àâäéèêëîïôöùûüçñÀÂÄÉÈÊËÎÏÔÖÙÛÜÇÑ]/g, '_');
         const safeFirstName = (data.firstName || 'Prenom').trim().replace(/[^a-zA-Z0-9àâäéèêëîïôöùûüçñÀÂÄÉÈÊËÎÏÔÖÙÛÜÇÑ]/g, '_');
         
@@ -199,6 +180,7 @@ export default function App() {
             <h1 className="text-lg font-bold text-slate-100 hidden sm:block">Fiche individuelle</h1>
           </div>
           
+          {/* Progress Bar */}
           <div className="flex items-center space-x-1 sm:space-x-4">
             {steps.map((step, idx) => (
               <div key={step.id} className="flex items-center">
@@ -274,25 +256,13 @@ export default function App() {
                   />
                   
                   {data.photoUrl ? (
-                    <div className="relative flex flex-col items-center z-10 pointer-events-none">
-                      <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-slate-600 shadow-xl mx-auto mb-4 bg-slate-200">
-                        {/* Preview with custom Object Position for better face centering */}
-                        <img 
-                          src={data.photoUrl} 
-                          alt="Preview" 
-                          style={{ 
-                            filter: data.photoFilter,
-                            objectPosition: '50% 20%' // Consistent framing for portraits
-                          }}
-                          className={`w-full h-full object-cover transition-all duration-300`} 
-                        />
+                    <div className="relative">
+                      <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-slate-600 shadow-xl mx-auto">
+                        {/* Preview with same object-top cropping as the final card */}
+                        <img src={data.photoUrl} alt="Preview" className="w-full h-full object-cover object-top" />
                       </div>
-                      
-                      <div className="text-center">
-                        <p className="text-sm text-green-400 font-semibold flex items-center justify-center">
-                           <Check className="w-4 h-4 mr-1"/> Photo chargée
-                        </p>
-                        <p className="text-xs text-slate-500 mt-1">Glissez une autre image pour remplacer</p>
+                      <div className="absolute -bottom-2 -right-2 bg-slate-900 rounded-full p-2 border border-slate-700 shadow-sm text-slate-300">
+                        <Edit3 className="w-4 h-4" />
                       </div>
                     </div>
                   ) : (
@@ -304,74 +274,101 @@ export default function App() {
                         Glissez votre photo ici <br/>
                         <span className="text-xs font-normal opacity-70">ou cliquez pour parcourir</span>
                       </p>
-                      <p className="text-xs mt-2 text-slate-600">JPG, PNG, WEBP</p>
+                      <p className="text-xs mt-2 text-slate-600">JPG, PNG, WEBP (Recadrage auto portrait)</p>
                     </div>
                   )}
                 </div>
-
-                {/* Enhancement Controls */}
-                {data.photoUrl && (
-                  <div className="flex justify-center mt-4">
-                    <button
-                      onClick={toggleEnhancement}
-                      disabled={isAnalyzing}
-                      className={`
-                        flex items-center space-x-2 px-4 py-2 rounded-full text-sm font-medium transition-all
-                        ${data.photoFilter 
-                          ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/50 ring-2 ring-indigo-400' 
-                          : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}
-                      `}
-                    >
-                      {isAnalyzing ? (
-                         <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                         <Wand2 className={`w-4 h-4 ${data.photoFilter ? 'text-yellow-300 fill-yellow-300' : ''}`} />
-                      )}
-                      <span>
-                        {isAnalyzing ? 'Analyse...' : (data.photoFilter ? 'Optimisation active' : 'Optimiser la photo')}
-                      </span>
-                    </button>
-                  </div>
-                )}
               </div>
             </div>
 
             <div className="bg-slate-900 p-6 rounded-xl shadow-lg border border-slate-800 space-y-6">
               
-              {/* Sections */}
-              {[
-                { key: 'bio', label: 'Section 1', titleKey: 'bioTitle', titlePlaceholder: 'Qui suis-je ?', placeholder: 'Parcours, profession...', limit: MAX_CHARS.bio },
-                { key: 'goals', label: 'Section 2', titleKey: 'goalsTitle', titlePlaceholder: 'Mes envies', placeholder: 'Projets prioritaires...', limit: MAX_CHARS.goals },
-                { key: 'commissions', label: 'Section 3', titleKey: 'commissionsTitle', titlePlaceholder: 'Les commissions', placeholder: 'Urbanisme...', limit: MAX_CHARS.commissions },
-              ].map((section) => (
-                <div key={section.key} className="bg-slate-950/50 p-4 rounded-lg border border-slate-800/50">
-                  <div className="mb-2">
-                     <label className="block text-xs uppercase tracking-wider text-slate-500 font-bold mb-1">{section.label}</label>
-                     <input
-                      type="text"
-                      name={section.titleKey}
-                      value={(data as any)[section.titleKey]}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-slate-700 bg-slate-800 rounded-md focus:ring-1 focus:ring-domessin-primary outline-none font-bold text-domessin-secondary text-lg placeholder-slate-600"
-                      placeholder={section.titlePlaceholder}
-                     />
-                  </div>
-                  <div className="relative">
-                    <textarea
-                      name={section.key}
-                      value={(data as any)[section.key]}
-                      onChange={handleInputChange}
-                      maxLength={section.limit}
-                      rows={4}
-                      className="w-full px-4 py-3 border border-slate-700 bg-slate-800 rounded-lg focus:ring-2 focus:ring-domessin-primary outline-none text-white placeholder-slate-500"
-                      placeholder={section.placeholder}
-                    />
-                    <div className={`text-right text-xs mt-1 ${(data as any)[section.key].length >= section.limit ? 'text-red-400 font-bold' : 'text-slate-500'}`}>
-                      {(data as any)[section.key].length}/{section.limit}
-                    </div>
+              {/* Section 1 */}
+              <div className="bg-slate-950/50 p-4 rounded-lg border border-slate-800/50">
+                <div className="mb-2">
+                   <label className="block text-xs uppercase tracking-wider text-slate-500 font-bold mb-1">Section 1</label>
+                   <input
+                    type="text"
+                    name="bioTitle"
+                    value={data.bioTitle}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-slate-700 bg-slate-800 rounded-md focus:ring-1 focus:ring-domessin-primary outline-none font-bold text-domessin-secondary text-lg placeholder-slate-600"
+                    placeholder="Titre (ex: Qui suis-je ?)"
+                   />
+                </div>
+                <div className="relative">
+                  <textarea
+                    name="bio"
+                    value={data.bio}
+                    onChange={handleInputChange}
+                    maxLength={MAX_CHARS.bio}
+                    rows={4}
+                    className="w-full px-4 py-3 border border-slate-700 bg-slate-800 rounded-lg focus:ring-2 focus:ring-domessin-primary outline-none text-white placeholder-slate-500"
+                    placeholder="Parcours, profession, lien avec la commune..."
+                  />
+                  <div className={`text-right text-xs mt-1 ${data.bio.length >= MAX_CHARS.bio ? 'text-red-400 font-bold' : 'text-slate-500'}`}>
+                    {data.bio.length}/{MAX_CHARS.bio}
                   </div>
                 </div>
-              ))}
+              </div>
+
+              {/* Section 2 */}
+              <div className="bg-slate-950/50 p-4 rounded-lg border border-slate-800/50">
+                <div className="mb-2">
+                   <label className="block text-xs uppercase tracking-wider text-slate-500 font-bold mb-1">Section 2</label>
+                   <input
+                    type="text"
+                    name="goalsTitle"
+                    value={data.goalsTitle}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-slate-700 bg-slate-800 rounded-md focus:ring-1 focus:ring-domessin-primary outline-none font-bold text-domessin-secondary text-lg placeholder-slate-600"
+                    placeholder="Titre (ex: Mes envies)"
+                   />
+                </div>
+                <div className="relative">
+                  <textarea
+                    name="goals"
+                    value={data.goals}
+                    onChange={handleInputChange}
+                    maxLength={MAX_CHARS.goals}
+                    rows={4}
+                    className="w-full px-4 py-3 border border-slate-700 bg-slate-800 rounded-lg focus:ring-2 focus:ring-domessin-primary outline-none text-white placeholder-slate-500"
+                    placeholder="Projets prioritaires, vision à long terme..."
+                  />
+                  <div className={`text-right text-xs mt-1 ${data.goals.length >= MAX_CHARS.goals ? 'text-red-400 font-bold' : 'text-slate-500'}`}>
+                    {data.goals.length}/{MAX_CHARS.goals}
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 3 */}
+              <div className="bg-slate-950/50 p-4 rounded-lg border border-slate-800/50">
+                <div className="mb-2">
+                   <label className="block text-xs uppercase tracking-wider text-slate-500 font-bold mb-1">Section 3</label>
+                   <input
+                    type="text"
+                    name="commissionsTitle"
+                    value={data.commissionsTitle}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-slate-700 bg-slate-800 rounded-md focus:ring-1 focus:ring-domessin-primary outline-none font-bold text-domessin-secondary text-lg placeholder-slate-600"
+                    placeholder="Titre (ex: Les commissions)"
+                   />
+                </div>
+                <div className="relative">
+                  <textarea
+                    name="commissions"
+                    value={data.commissions}
+                    onChange={handleInputChange}
+                    maxLength={MAX_CHARS.commissions}
+                    rows={4}
+                    className="w-full px-4 py-3 border border-slate-700 bg-slate-800 rounded-lg focus:ring-2 focus:ring-domessin-primary outline-none text-white placeholder-slate-500"
+                    placeholder="Urbanisme, Scolaire, Finances..."
+                  />
+                  <div className={`text-right text-xs mt-1 ${data.commissions.length >= MAX_CHARS.commissions ? 'text-red-400 font-bold' : 'text-slate-500'}`}>
+                    {data.commissions.length}/{MAX_CHARS.commissions}
+                  </div>
+                </div>
+              </div>
             </div>
 
             <button
@@ -397,28 +394,61 @@ export default function App() {
                 </button>
              </div>
             
+            {/* Grid of previews (Visually identical but NOT used for export) */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {[
-                { id: 'a4', label: 'Format A4 (Flyer)', w: 265, h: 374, scale: 0.333 },
-                { id: 'story', label: 'Story (9:16)', w: 270, h: 480, scale: 0.25 },
-                { id: 'square', label: 'Post (1:1)', w: 300, h: 300, scale: 0.277 }
-              ].map((fmt) => (
-                <div key={fmt.id} className="flex flex-col items-center">
-                   <h4 className="font-bold text-slate-300 mb-3 flex items-center"><ImageIcon className="w-4 h-4 mr-2"/> {fmt.label}</h4>
-                   <div className={`relative border border-slate-700 shadow-2xl overflow-hidden bg-white`} style={{ width: fmt.w, height: fmt.h }}>
-                      <div className="origin-top-left" style={{ transform: `scale(${fmt.scale})` }}>
-                         <CardTemplate data={data} format={fmt.id as any} />
-                      </div>
-                   </div>
-                   <button 
-                      onClick={() => downloadImage(fmt.id as any)} 
-                      disabled={isGenerating}
-                      className="mt-4 w-full py-2 bg-slate-800 text-white rounded-lg flex items-center justify-center hover:bg-slate-700 border border-slate-700 disabled:opacity-50"
-                   >
-                      {isGenerating ? 'Génération...' : <><Download className="w-4 h-4 mr-2" /> Télécharger</>}
-                   </button>
-                </div>
-              ))}
+              
+              {/* A4 Column */}
+              <div className="flex flex-col items-center">
+                 <h4 className="font-bold text-slate-300 mb-3 flex items-center"><ImageIcon className="w-4 h-4 mr-2"/> Format A4 (Flyer)</h4>
+                 {/* Wrapper for scaling */}
+                 <div className="relative w-[265px] h-[374px] border border-slate-700 shadow-2xl overflow-hidden bg-white">
+                    <div className="origin-top-left transform scale-[0.333]">
+                       <CardTemplate data={data} format="a4" />
+                    </div>
+                 </div>
+                 <button 
+                    onClick={() => downloadImage('a4')} 
+                    disabled={isGenerating}
+                    className="mt-4 w-full py-2 bg-slate-800 text-white rounded-lg flex items-center justify-center hover:bg-slate-700 border border-slate-700 disabled:opacity-50"
+                 >
+                    {isGenerating ? 'Génération...' : <><Download className="w-4 h-4 mr-2" /> Télécharger A4</>}
+                 </button>
+              </div>
+
+              {/* Story Column */}
+              <div className="flex flex-col items-center">
+                 <h4 className="font-bold text-slate-300 mb-3 flex items-center"><ImageIcon className="w-4 h-4 mr-2"/> Story (9:16)</h4>
+                 <div className="relative w-[270px] h-[480px] border border-slate-700 shadow-2xl overflow-hidden bg-white">
+                    <div className="origin-top-left transform scale-[0.25]">
+                       <CardTemplate data={data} format="story" />
+                    </div>
+                 </div>
+                 <button 
+                    onClick={() => downloadImage('story')} 
+                    disabled={isGenerating}
+                    className="mt-4 w-full py-2 bg-slate-800 text-white rounded-lg flex items-center justify-center hover:bg-slate-700 border border-slate-700 disabled:opacity-50"
+                 >
+                    {isGenerating ? 'Génération...' : <><Download className="w-4 h-4 mr-2" /> Télécharger Story</>}
+                 </button>
+              </div>
+
+              {/* Square Column */}
+              <div className="flex flex-col items-center">
+                 <h4 className="font-bold text-slate-300 mb-3 flex items-center"><ImageIcon className="w-4 h-4 mr-2"/> Post (1:1)</h4>
+                 <div className="relative w-[300px] h-[300px] border border-slate-700 shadow-2xl overflow-hidden bg-white">
+                    <div className="origin-top-left transform scale-[0.277]">
+                       <CardTemplate data={data} format="square" />
+                    </div>
+                 </div>
+                 <button 
+                    onClick={() => downloadImage('square')} 
+                    disabled={isGenerating}
+                    className="mt-4 w-full py-2 bg-slate-800 text-white rounded-lg flex items-center justify-center hover:bg-slate-700 border border-slate-700 disabled:opacity-50"
+                 >
+                    {isGenerating ? 'Génération...' : <><Download className="w-4 h-4 mr-2" /> Télécharger Carré</>}
+                 </button>
+              </div>
+
             </div>
           </div>
         )}

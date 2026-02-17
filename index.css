@@ -10,3 +10,43 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+@layer base {
+  /* Fix Safari/Mac font rendering being too bold */
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* CRITIQUE SAFARI : Reset des styles natifs de formulaires (ombres internes, border-radius par défaut) */
+  input, textarea, button, select {
+    -webkit-appearance: none;
+    appearance: none;
+    border-radius: 0;
+  }
+  
+  /* Fix pour supprimer le délai de tap et le highlight gris sur iOS */
+  button, [role="button"] {
+    -webkit-tap-highlight-color: transparent;
+    cursor: pointer;
+  }
+}
+
+@layer utilities {
+  /* Fallback pour les navigateurs ne supportant pas dvh */
+  .min-h-screen-safe {
+    min-height: 100vh;
+    min-height: 100dvh; /* Dynamic viewport height pour iOS Safari */
+  }
+  
+  .h-screen-safe {
+    height: 100vh;
+    height: 100dvh;
+  }
+  
+  .max-h-screen-safe {
+    max-height: 100vh;
+    max-height: 100dvh;
+  }
+}

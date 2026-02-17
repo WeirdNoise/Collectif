@@ -195,7 +195,8 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col font-sans bg-slate-950 text-slate-100">
+    // Update: Using min-h-screen-safe for iOS 100dvh support
+    <div className="min-h-screen-safe flex flex-col font-sans bg-slate-950 text-slate-100">
       
       {/* Off-screen container for high-quality generation */}
       <div style={{ position: 'fixed', left: '-9999px', top: '-9999px' }}>
@@ -251,7 +252,8 @@ export default function App() {
                     name="firstName"
                     value={data.firstName}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-slate-700 bg-slate-800 rounded-lg focus:ring-2 focus:ring-domessin-primary focus:border-transparent outline-none text-white placeholder-slate-500"
+                    // Update: appearance-none forced
+                    className="appearance-none w-full px-4 py-2 border border-slate-700 bg-slate-800 rounded-lg focus:ring-2 focus:ring-domessin-primary focus:border-transparent outline-none text-white placeholder-slate-500"
                     placeholder="Jean"
                   />
                 </div>
@@ -262,7 +264,8 @@ export default function App() {
                     name="lastName"
                     value={data.lastName}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-slate-700 bg-slate-800 rounded-lg focus:ring-2 focus:ring-domessin-primary focus:border-transparent outline-none text-white placeholder-slate-500"
+                    // Update: appearance-none forced
+                    className="appearance-none w-full px-4 py-2 border border-slate-700 bg-slate-800 rounded-lg focus:ring-2 focus:ring-domessin-primary focus:border-transparent outline-none text-white placeholder-slate-500"
                     placeholder="Dupont"
                   />
                 </div>
@@ -323,7 +326,8 @@ export default function App() {
                     name="bioTitle"
                     value={data.bioTitle}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-slate-700 bg-slate-800 rounded-md focus:ring-1 focus:ring-domessin-primary outline-none font-bold text-domessin-secondary text-lg placeholder-slate-600"
+                    // Update: appearance-none forced
+                    className="appearance-none w-full px-3 py-2 border border-slate-700 bg-slate-800 rounded-md focus:ring-1 focus:ring-domessin-primary outline-none font-bold text-domessin-secondary text-lg placeholder-slate-600"
                     placeholder="Titre (ex: Qui suis-je ?)"
                    />
                 </div>
@@ -334,7 +338,8 @@ export default function App() {
                     onChange={handleInputChange}
                     maxLength={MAX_CHARS.bio}
                     rows={4}
-                    className="w-full px-4 py-3 border border-slate-700 bg-slate-800 rounded-lg focus:ring-2 focus:ring-domessin-primary outline-none text-white placeholder-slate-500"
+                    // Update: appearance-none forced
+                    className="appearance-none w-full px-4 py-3 border border-slate-700 bg-slate-800 rounded-lg focus:ring-2 focus:ring-domessin-primary outline-none text-white placeholder-slate-500"
                     placeholder="Parcours, profession, lien avec la commune..."
                   />
                   <div className={`text-right text-xs mt-1 ${data.bio.length >= MAX_CHARS.bio ? 'text-red-400 font-bold' : 'text-slate-500'}`}>
@@ -352,7 +357,7 @@ export default function App() {
                     name="goalsTitle"
                     value={data.goalsTitle}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-slate-700 bg-slate-800 rounded-md focus:ring-1 focus:ring-domessin-primary outline-none font-bold text-domessin-secondary text-lg placeholder-slate-600"
+                    className="appearance-none w-full px-3 py-2 border border-slate-700 bg-slate-800 rounded-md focus:ring-1 focus:ring-domessin-primary outline-none font-bold text-domessin-secondary text-lg placeholder-slate-600"
                     placeholder="Titre (ex: Mes envies)"
                    />
                 </div>
@@ -363,7 +368,7 @@ export default function App() {
                     onChange={handleInputChange}
                     maxLength={MAX_CHARS.goals}
                     rows={4}
-                    className="w-full px-4 py-3 border border-slate-700 bg-slate-800 rounded-lg focus:ring-2 focus:ring-domessin-primary outline-none text-white placeholder-slate-500"
+                    className="appearance-none w-full px-4 py-3 border border-slate-700 bg-slate-800 rounded-lg focus:ring-2 focus:ring-domessin-primary outline-none text-white placeholder-slate-500"
                     placeholder="Projets prioritaires, vision à long terme..."
                   />
                   <div className={`text-right text-xs mt-1 ${data.goals.length >= MAX_CHARS.goals ? 'text-red-400 font-bold' : 'text-slate-500'}`}>
@@ -381,7 +386,7 @@ export default function App() {
                     name="commissionsTitle"
                     value={data.commissionsTitle}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-slate-700 bg-slate-800 rounded-md focus:ring-1 focus:ring-domessin-primary outline-none font-bold text-domessin-secondary text-lg placeholder-slate-600"
+                    className="appearance-none w-full px-3 py-2 border border-slate-700 bg-slate-800 rounded-md focus:ring-1 focus:ring-domessin-primary outline-none font-bold text-domessin-secondary text-lg placeholder-slate-600"
                     placeholder="Titre (ex: Les commissions)"
                    />
                 </div>
@@ -392,7 +397,7 @@ export default function App() {
                     onChange={handleInputChange}
                     maxLength={MAX_CHARS.commissions}
                     rows={4}
-                    className="w-full px-4 py-3 border border-slate-700 bg-slate-800 rounded-lg focus:ring-2 focus:ring-domessin-primary outline-none text-white placeholder-slate-500"
+                    className="appearance-none w-full px-4 py-3 border border-slate-700 bg-slate-800 rounded-lg focus:ring-2 focus:ring-domessin-primary outline-none text-white placeholder-slate-500"
                     placeholder="Urbanisme, Scolaire, Finances..."
                   />
                   <div className={`text-right text-xs mt-1 ${data.commissions.length >= MAX_CHARS.commissions ? 'text-red-400 font-bold' : 'text-slate-500'}`}>

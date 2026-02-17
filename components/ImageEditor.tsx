@@ -245,7 +245,8 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ imageSrc, onSave, onCa
     <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
       
       {/* Modal Container */}
-      <div className="bg-slate-900 w-full max-w-3xl rounded-2xl shadow-2xl border border-slate-700 overflow-hidden flex flex-col max-h-[90vh]">
+      {/* Update: max-h-[90vh] -> max-h-[90dvh] for iOS Safari */}
+      <div className="bg-slate-900 w-full max-w-3xl rounded-2xl shadow-2xl border border-slate-700 overflow-hidden flex flex-col max-h-[90dvh] max-h-[90vh]">
         
         {/* Header */}
         <div className="h-14 bg-slate-800 border-b border-slate-700 px-4 flex items-center justify-between shrink-0">
@@ -262,10 +263,11 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ imageSrc, onSave, onCa
         <div className="flex-1 bg-slate-950 relative overflow-hidden flex items-center justify-center p-4 touch-none select-none">
            <div ref={containerRef} className="relative shadow-2xl max-w-full max-h-full flex justify-center items-center">
               {/* Canvas with max dimensions to ensure it fits in modal */}
+              {/* Update: max-height calc uses dvh for iOS */}
               <canvas 
                 ref={canvasRef} 
                 className="block max-w-full max-h-full object-contain pointer-events-none"
-                style={{ maxHeight: 'calc(90vh - 8rem)' }}
+                style={{ maxHeight: 'calc(90dvh - 8rem)' }}
               />
 
               {/* Crop Overlay */}

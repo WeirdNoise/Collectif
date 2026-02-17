@@ -124,12 +124,6 @@ export const CardTemplate = forwardRef<HTMLDivElement, CardTemplateProps>(({ dat
 
         </div>
       </div>
-
-      {/* Footer */}
-      <div className="h-[8%] bg-slate-900 flex-shrink-0 flex items-center justify-between px-12 text-white relative z-20">
-         <span className={`${isSquare ? 'text-lg' : 'text-xl'} font-bold font-display opacity-80`}>Élections Municipales</span>
-         <span className={`${isSquare ? 'text-lg' : 'text-xl'} font-original text-domessin-light tracking-wide`}>domessin-alternative.fr</span>
-      </div>
     </div>
   );
 });

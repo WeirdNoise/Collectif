@@ -50,7 +50,8 @@ export const CardTemplate = forwardRef<HTMLDivElement, CardTemplateProps>(({ dat
       }}
     >
       {/* Header Band - Bigger and bolder with Primary Green */}
-      <div className="bg-domessin-primary min-h-[15%] flex flex-col items-center justify-center px-8 relative py-8">
+      {/* Added flex-shrink-0 to prevent layout squashing on A4 */}
+      <div className="bg-domessin-primary min-h-[15%] flex-shrink-0 flex flex-col items-center justify-center px-8 relative py-8">
         <h1 className={`${titleSize} font-original text-white text-center leading-none drop-shadow-md`}>
           Une alternative <br/> pour Domessin
         </h1>
@@ -125,7 +126,7 @@ export const CardTemplate = forwardRef<HTMLDivElement, CardTemplateProps>(({ dat
       </div>
 
       {/* Footer */}
-      <div className="h-[8%] bg-slate-900 flex items-center justify-between px-12 text-white relative z-20">
+      <div className="h-[8%] bg-slate-900 flex-shrink-0 flex items-center justify-between px-12 text-white relative z-20">
          <span className={`${isSquare ? 'text-lg' : 'text-xl'} font-bold font-display opacity-80`}>Élections Municipales</span>
          <span className={`${isSquare ? 'text-lg' : 'text-xl'} font-original text-domessin-light tracking-wide`}>domessin-alternative.fr</span>
       </div>

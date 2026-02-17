@@ -3,23 +3,25 @@ import react from '@vitejs/plugin-react'
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
-  // Charge les variables d'environnement depuis le fichier .env (si local) ou l'environnement système (Vercel)
-  // Le troisième argument '' permet de charger toutes les variables, pas seulement celles commençant par VITE_
-  const env = loadEnv(mode, (process as any).cwd(), '');
+  // Charge toutes les variables d'environnement
+  const env = loadEnv(mode, '.', '');
 
   return {
     plugins: [react()],
-    // Utiliser des chemins relatifs pour que l'app fonctionne dans n'importe quel sous-dossier ou URL de preview
-    base: './',
+    // SUPPRESSION DE "base: './'" : Sur Vercel, il est préférable d'utiliser le chemin absolu par défaut '/'
+    // pour garantir que les assets (CSS/JS) sont chargés correctement depuis la racine.
+    
     define: {
-      // Injection explicite de la clé API pour qu'elle soit disponible dans le navigateur
-      // Cela remplace 'process.env.API_KEY' par sa valeur réelle lors du build
-      'process.env.API_KEY': JSON.stringify(env.API_KEY),
+      // Polyfill robuste de process.env
+      // Au lieu de remplacer juste une clé, on remplace l'objet process.env entier par un objet littéral.
+      // Cela évite l'erreur "process is not defined" si une librairie essaie d'accéder à process.env.NODE_ENV par exemple.
+      'process.env': {
+        API_KEY: env.API_KEY,
+        NODE_ENV: mode,
+      }
     },
     server: {
-      // Écouter sur toutes les IPs (utile pour certains environnements cloud)
       host: true,
-      // Activer CORS pour le développement
       cors: true,
       headers: {
         'Access-Control-Allow-Origin': '*',
@@ -29,7 +31,6 @@ export default defineConfig(({ mode }) => {
       allowedHosts: true,
       headers: {
         'Access-Control-Allow-Origin': '*',
-        // Suppression explicite des restrictions de frame pour les previews
         'X-Frame-Options': 'ALLOWALL',
       }
     }

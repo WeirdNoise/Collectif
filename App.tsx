@@ -18,9 +18,9 @@ const INITIAL_PROFILE: CandidateProfile = {
 
 // Increased character limits
 const MAX_CHARS = {
-  bio: 400,
-  goals: 400,
-  commissions: 400
+  bio: 350,
+  goals: 350,
+  commissions: 350
 };
 
 export default function App() {

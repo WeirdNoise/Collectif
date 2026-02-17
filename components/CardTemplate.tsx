@@ -50,7 +50,7 @@ export const CardTemplate = forwardRef<HTMLDivElement, CardTemplateProps>(({ dat
       </div>
 
       {/* Main Content */}
-      <div className={`flex-1 p-8 ${isVertical ? 'flex flex-col gap-10' : 'grid grid-cols-12 gap-8'}`}>
+      <div className={`flex-1 p-8 pb-12 ${isVertical ? 'flex flex-col gap-10' : 'grid grid-cols-12 gap-8'}`}>
         
         {/* Left Column (Photo + Name) */}
         <div className={`${isVertical ? 'w-full text-center' : 'col-span-4 flex flex-col items-center text-center'} pt-4`}>
@@ -116,7 +116,7 @@ export const CardTemplate = forwardRef<HTMLDivElement, CardTemplateProps>(({ dat
       </div>
 
       {/* Footer */}
-      <div className="h-[6%] bg-slate-900 flex items-center justify-between px-12 text-white relative z-20">
+      <div className="h-[8%] bg-slate-900 flex items-center justify-between px-12 text-white relative z-20">
          <span className={`${isSquare ? 'text-lg' : 'text-xl'} font-bold font-display opacity-80`}>Élections Municipales</span>
          <span className={`${isSquare ? 'text-lg' : 'text-xl'} font-original text-domessin-light tracking-wide`}>domessin-alternative.fr</span>
       </div>

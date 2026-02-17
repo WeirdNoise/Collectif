@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Camera, Edit3, Image as ImageIcon, Download, Check, ChevronRight, UploadCloud } from 'lucide-react';
+import { Camera, Edit3, Image as ImageIcon, Download, Check, ChevronRight, UploadCloud, Wand2 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { CandidateProfile, Step } from './types';
 import { CardTemplate } from './components/CardTemplate';
@@ -8,6 +8,7 @@ const INITIAL_PROFILE: CandidateProfile = {
   firstName: '',
   lastName: '',
   photoUrl: null,
+  photoEnhanced: false,
   bioTitle: 'Qui suis-je ?',
   bio: '',
   goalsTitle: 'Mes envies pour la commune',
@@ -60,7 +61,7 @@ export default function App() {
   const processFile = (file: File) => {
     if (file && file.type.startsWith('image/')) {
       const url = URL.createObjectURL(file);
-      setData(prev => ({ ...prev, photoUrl: url }));
+      setData(prev => ({ ...prev, photoUrl: url, photoEnhanced: false }));
     } else {
       alert("Format de fichier non supporté. Veuillez utiliser une image (JPEG, PNG).");
     }
@@ -70,6 +71,10 @@ export default function App() {
     if (e.target.files && e.target.files[0]) {
       processFile(e.target.files[0]);
     }
+  };
+
+  const toggleEnhancement = () => {
+    setData(prev => ({ ...prev, photoEnhanced: !prev.photoEnhanced }));
   };
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
@@ -256,13 +261,34 @@ export default function App() {
                   />
                   
                   {data.photoUrl ? (
-                    <div className="relative">
-                      <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-slate-600 shadow-xl mx-auto">
+                    <div className="relative flex flex-col items-center z-10 pointer-events-none">
+                      <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-slate-600 shadow-xl mx-auto mb-4">
                         {/* Preview with same object-top cropping as the final card */}
-                        <img src={data.photoUrl} alt="Preview" className="w-full h-full object-cover object-top" />
+                        <img 
+                          src={data.photoUrl} 
+                          alt="Preview" 
+                          className={`w-full h-full object-cover object-top transition-all duration-300 ${data.photoEnhanced ? 'brightness-[1.05] contrast-[1.05] saturate-[1.1]' : ''}`} 
+                        />
                       </div>
-                      <div className="absolute -bottom-2 -right-2 bg-slate-900 rounded-full p-2 border border-slate-700 shadow-sm text-slate-300">
+                      
+                      <button 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          // Stop propagation isn't enough because the input covers everything.
+                          // We need to move this button OUTSIDE the label/input container in the real DOM, 
+                          // but visually inside. 
+                          // Actually, since this entire div is the drop zone, we'll put the button separate below.
+                        }}
+                        className="bg-slate-900 rounded-full p-2 border border-slate-700 shadow-sm text-slate-300 hidden"
+                      >
                         <Edit3 className="w-4 h-4" />
+                      </button>
+                      
+                      <div className="text-center">
+                        <p className="text-sm text-green-400 font-semibold flex items-center justify-center">
+                           <Check className="w-4 h-4 mr-1"/> Photo chargée
+                        </p>
+                        <p className="text-xs text-slate-500 mt-1">Glissez une autre image pour remplacer</p>
                       </div>
                     </div>
                   ) : (
@@ -278,6 +304,26 @@ export default function App() {
                     </div>
                   )}
                 </div>
+
+                {/* Enhancement Controls - Outside the dropzone to avoid click conflicts */}
+                {data.photoUrl && (
+                  <div className="flex justify-center mt-4">
+                    <button
+                      onClick={toggleEnhancement}
+                      className={`
+                        flex items-center space-x-2 px-4 py-2 rounded-full text-sm font-medium transition-all
+                        ${data.photoEnhanced 
+                          ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/50 ring-2 ring-indigo-400' 
+                          : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}
+                      `}
+                    >
+                      <Wand2 className={`w-4 h-4 ${data.photoEnhanced ? 'text-yellow-300 fill-yellow-300' : ''}`} />
+                      <span>
+                        {data.photoEnhanced ? 'Amélioration active' : 'Améliorer automatiquement'}
+                      </span>
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 

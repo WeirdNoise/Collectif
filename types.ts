@@ -1,3 +1,4 @@
+
 export enum Step {
   COLLECT = 1,
   GENERATE = 2
@@ -7,6 +8,7 @@ export interface CandidateProfile {
   firstName: string;
   lastName: string;
   photoUrl: string | null;
+  photoEnhanced?: boolean; // New field for auto-enhancement
   
   // Section 1
   bioTitle: string;

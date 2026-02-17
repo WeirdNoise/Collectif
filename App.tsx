@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Camera, Edit3, Image as ImageIcon, Download, Check, ChevronRight } from 'lucide-react';
+import { Camera, Edit3, Image as ImageIcon, Download, Check, ChevronRight, UploadCloud } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { CandidateProfile, Step } from './types';
 import { CardTemplate } from './components/CardTemplate';
@@ -27,6 +27,7 @@ export default function App() {
   const [currentStep, setCurrentStep] = useState<Step>(Step.COLLECT);
   const [data, setData] = useState<CandidateProfile>(INITIAL_PROFILE);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   // Refs for generating images (attached to off-screen elements)
   const refA4 = useRef<HTMLDivElement>(null);
@@ -56,10 +57,36 @@ export default function App() {
     setData(prev => ({ ...prev, [name]: value }));
   };
 
+  const processFile = (file: File) => {
+    if (file && file.type.startsWith('image/')) {
+      const url = URL.createObjectURL(file);
+      setData(prev => ({ ...prev, photoUrl: url }));
+    } else {
+      alert("Format de fichier non supporté. Veuillez utiliser une image (JPEG, PNG).");
+    }
+  };
+
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      const url = URL.createObjectURL(e.target.files[0]);
-      setData(prev => ({ ...prev, photoUrl: url }));
+      processFile(e.target.files[0]);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      processFile(e.dataTransfer.files[0]);
     }
   };
 
@@ -211,20 +238,45 @@ export default function App() {
 
               <div className="mb-6">
                 <label className="block text-sm font-semibold text-slate-400 mb-2">Photo du candidat</label>
-                <div className="flex items-center space-x-6">
-                  <div className="w-24 h-24 bg-slate-800 rounded-full overflow-hidden border-2 border-dashed border-slate-600 flex items-center justify-center shrink-0">
-                    {data.photoUrl ? (
-                      <img src={data.photoUrl} alt="Preview" className="w-full h-full object-cover" />
-                    ) : (
-                      <Camera className="text-slate-500 w-8 h-8" />
-                    )}
-                  </div>
+                
+                <div 
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  className={`
+                    relative w-full border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center transition-all cursor-pointer group
+                    ${isDragging ? 'border-domessin-primary bg-domessin-primary/10' : 'border-slate-700 bg-slate-800/50 hover:bg-slate-800'}
+                  `}
+                >
                   <input
                     type="file"
-                    accept="image/*"
+                    accept="image/png, image/jpeg, image/jpg, image/webp"
                     onChange={handlePhotoUpload}
-                    className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-slate-800 file:text-domessin-secondary hover:file:bg-slate-700 cursor-pointer"
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   />
+                  
+                  {data.photoUrl ? (
+                    <div className="relative">
+                      <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-slate-600 shadow-xl mx-auto">
+                        {/* Preview with same object-top cropping as the final card */}
+                        <img src={data.photoUrl} alt="Preview" className="w-full h-full object-cover object-top" />
+                      </div>
+                      <div className="absolute -bottom-2 -right-2 bg-slate-900 rounded-full p-2 border border-slate-700 shadow-sm text-slate-300">
+                        <Edit3 className="w-4 h-4" />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center text-slate-500 group-hover:text-slate-400 transition-colors">
+                      <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mb-4 shadow-inner">
+                         <UploadCloud className="w-8 h-8" />
+                      </div>
+                      <p className="font-semibold text-center">
+                        Glissez votre photo ici <br/>
+                        <span className="text-xs font-normal opacity-70">ou cliquez pour parcourir</span>
+                      </p>
+                      <p className="text-xs mt-2 text-slate-600">JPG, PNG, WEBP (Recadrage auto portrait)</p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

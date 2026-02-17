@@ -67,7 +67,7 @@ export const CardTemplate = forwardRef<HTMLDivElement, CardTemplateProps>(({ dat
           {/* Round Photo */}
           <div className={`relative ${isVertical ? 'w-80 h-80' : 'w-56 h-56'} mx-auto mb-6 rounded-full overflow-hidden border-8 border-slate-100 shadow-xl bg-white`}>
             {data.photoUrl ? (
-              <img src={data.photoUrl} alt="Candidat" className="w-full h-full object-cover" />
+              <img src={data.photoUrl} alt="Candidat" className="w-full h-full object-cover object-top" />
             ) : (
               <div className="w-full h-full bg-slate-200 flex items-center justify-center text-slate-400">
                 <span>Photo</span>

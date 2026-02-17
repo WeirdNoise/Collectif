@@ -70,7 +70,11 @@ export const CardTemplate = forwardRef<HTMLDivElement, CardTemplateProps>(({ dat
               <img 
                 src={data.photoUrl} 
                 alt="Candidat" 
-                className={`w-full h-full object-cover object-top ${data.photoEnhanced ? 'brightness-[1.05] contrast-[1.05] saturate-[1.1]' : ''}`} 
+                style={{ 
+                  filter: data.photoFilter,
+                  objectPosition: '50% 20%' // Standard ID photo framing (centered, slightly up)
+                }}
+                className={`w-full h-full object-cover`} 
               />
             ) : (
               <div className="w-full h-full bg-slate-200 flex items-center justify-center text-slate-400">

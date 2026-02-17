@@ -8,7 +8,7 @@ export interface CandidateProfile {
   firstName: string;
   lastName: string;
   photoUrl: string | null;
-  photoEnhanced?: boolean; // New field for auto-enhancement
+  photoFilter: string; // Changed from boolean to string to store calculated CSS filters
   
   // Section 1
   bioTitle: string;

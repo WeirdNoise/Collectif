@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { Check, X, Wand2, RotateCcw, Crop as CropIcon } from 'lucide-react';
+import { Check, X, Wand2, RotateCcw } from 'lucide-react';
 
 interface ImageEditorProps {
   imageSrc: string;
@@ -69,17 +69,18 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ imageSrc, onSave, onCa
 
     // Update scale factor (Visual width vs Real width)
     const updateScale = () => {
-      if (containerRef.current && originalImage) {
+      if (containerRef.current && originalImage && canvas) {
         // The image is contained, so we need to find the actual displayed dimensions
-        const containerW = containerRef.current.clientWidth;
-        // Since canvas is max-width: 100%, height: auto
-        const displayedWidth = Math.min(containerW, originalImage.width); 
-        // Logic simplification: We rely on standard CSS scaling
-        setScale(originalImage.width / containerRef.current.clientWidth); 
+        // canvas.clientWidth gives the rendered width in CSS pixels
+        const displayedWidth = canvas.clientWidth;
+        if (displayedWidth > 0) {
+           setScale(originalImage.width / displayedWidth); 
+        }
       }
     };
     
-    updateScale();
+    // Slight delay to ensure layout is done
+    setTimeout(updateScale, 50);
     window.addEventListener('resize', updateScale);
     return () => window.removeEventListener('resize', updateScale);
 
@@ -104,16 +105,11 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ imageSrc, onSave, onCa
     const brightness = Math.floor(colorSum / (width * height));
 
     // 2. Adjustments
-    // If dark (<100), boost brightness. If washed out, boost contrast.
-    // Simple linear adjustment
     const brightnessOffset = brightness < 110 ? (130 - brightness) : 0; // Target ~130
     const contrastFactor = 1.2; // 20% boost by default
 
-    // Helper to clamp 0-255
     const truncate = (v: number) => Math.min(255, Math.max(0, v));
 
-    // Formula for contrast: factor * (color - 128) + 128
-    
     for (let i = 0; i < data.length; i += 4) {
       // Apply brightness
       data[i] += brightnessOffset;     // R
@@ -140,9 +136,6 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ imageSrc, onSave, onCa
 
   const handleStart = (e: React.MouseEvent | React.TouchEvent, handle: string) => {
     e.stopPropagation(); // Stop bubbling
-    // Prevent default only if needed, but for touchstart it might block scrolling too early.
-    // We usually preventDefault on move.
-    
     setIsDragging(true);
     setDragHandle(handle);
     setDragStart(getClientPos(e));
@@ -152,7 +145,6 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ imageSrc, onSave, onCa
   const handleMove = useCallback((e: MouseEvent | TouchEvent) => {
     if (!isDragging || !originalImage || !containerRef.current) return;
 
-    // CRITICAL: Prevent scrolling on mobile while dragging crop tool
     if (e.type === 'touchmove') {
       e.preventDefault(); 
     }
@@ -203,12 +195,11 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ imageSrc, onSave, onCa
     setDragHandle(null);
   }, []);
 
-  // Global event listeners for drag outside component
   useEffect(() => {
     if (isDragging) {
       window.addEventListener('mousemove', handleMove);
       window.addEventListener('mouseup', handleEnd);
-      window.addEventListener('touchmove', handleMove, { passive: false }); // passive: false needed for preventDefault
+      window.addEventListener('touchmove', handleMove, { passive: false });
       window.addEventListener('touchend', handleEnd);
     }
     return () => {
@@ -224,26 +215,22 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ imageSrc, onSave, onCa
   const handleSaveInternal = () => {
     if (!canvasRef.current) return;
     
-    // Create a temp canvas for the cropped result
     const tempCanvas = document.createElement('canvas');
     tempCanvas.width = crop.width;
     tempCanvas.height = crop.height;
     const tempCtx = tempCanvas.getContext('2d');
     
     if (tempCtx) {
-      // Draw from source canvas (which has corrections applied)
       tempCtx.drawImage(
         canvasRef.current,
-        crop.x, crop.y, crop.width, crop.height, // Source
-        0, 0, crop.width, crop.height            // Dest
+        crop.x, crop.y, crop.width, crop.height,
+        0, 0, crop.width, crop.height
       );
-      
       onSave(tempCanvas.toDataURL('image/jpeg', 0.9));
     }
   };
 
   // Styles helpers
-  // Convert Real Pixels to CSS Percentage for responsive display of the overlay
   const getOverlayStyle = () => {
     if (!originalImage) return {};
     return {
@@ -255,102 +242,107 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ imageSrc, onSave, onCa
   };
 
   return (
-    <div className="fixed inset-0 z-[100] bg-slate-950 flex flex-col animate-fade-in">
-      {/* Header */}
-      <div className="h-16 bg-slate-900 border-b border-slate-800 px-4 flex items-center justify-between shrink-0">
-        <button onClick={onCancel} className="text-slate-400 hover:text-white flex items-center">
-          <X className="w-5 h-5 mr-2" /> Annuler
-        </button>
-        <h2 className="text-white font-bold hidden sm:block">Éditeur Photo</h2>
-        <button onClick={handleSaveInternal} className="bg-domessin-primary text-white px-4 py-2 rounded-lg flex items-center font-semibold hover:bg-teal-700">
-          <Check className="w-4 h-4 mr-2" /> Valider
-        </button>
-      </div>
+    <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+      
+      {/* Modal Container */}
+      <div className="bg-slate-900 w-full max-w-3xl rounded-2xl shadow-2xl border border-slate-700 overflow-hidden flex flex-col max-h-[90vh]">
+        
+        {/* Header */}
+        <div className="h-14 bg-slate-800 border-b border-slate-700 px-4 flex items-center justify-between shrink-0">
+          <button onClick={onCancel} className="text-slate-400 hover:text-white flex items-center transition-colors">
+            <X className="w-5 h-5 mr-1" /> <span className="text-sm">Annuler</span>
+          </button>
+          <h2 className="text-white font-bold text-sm sm:text-base">Éditer la photo</h2>
+          <button onClick={handleSaveInternal} className="bg-domessin-primary text-white px-3 py-1.5 rounded-lg flex items-center font-semibold text-sm hover:bg-teal-700 transition-colors shadow-lg">
+            <Check className="w-4 h-4 mr-1" /> Valider
+          </button>
+        </div>
 
-      {/* Main Workspace */}
-      <div className="flex-1 overflow-hidden relative flex items-center justify-center p-4 bg-slate-950 touch-none">
-         <div ref={containerRef} className="relative w-full max-w-2xl shadow-2xl">
-            {/* The Canvas (Image Source) */}
-            <canvas 
-              ref={canvasRef} 
-              className="block w-full h-auto pointer-events-none" // Disable pointer events on canvas, handle on overlay
-            />
+        {/* Workspace */}
+        <div className="flex-1 bg-slate-950 relative overflow-hidden flex items-center justify-center p-4 touch-none select-none">
+           <div ref={containerRef} className="relative shadow-2xl max-w-full max-h-full flex justify-center items-center">
+              {/* Canvas with max dimensions to ensure it fits in modal */}
+              <canvas 
+                ref={canvasRef} 
+                className="block max-w-full max-h-full object-contain pointer-events-none"
+                style={{ maxHeight: 'calc(90vh - 8rem)' }}
+              />
 
-            {/* Crop Overlay */}
-            {originalImage && (
-              <>
-                {/* Darken surrounding area */}
-                <div className="absolute inset-0 bg-black/60 pointer-events-none"></div>
-                
-                {/* The Crop Box */}
-                <div 
-                  className="absolute border-2 border-white shadow-[0_0_0_9999px_rgba(0,0,0,0.6)] cursor-move"
-                  style={{
-                    ...getOverlayStyle(),
-                    touchAction: 'none' // Important for browser handling
-                  }}
-                  onMouseDown={(e) => handleStart(e, 'move')}
-                  onTouchStart={(e) => handleStart(e, 'move')}
-                >
-                  {/* Grid lines (Rule of thirds) */}
-                  <div className="absolute inset-0 flex flex-col justify-evenly opacity-30 pointer-events-none">
-                    <div className="h-px bg-white w-full"></div>
-                    <div className="h-px bg-white w-full"></div>
+              {/* Crop Overlay */}
+              {originalImage && (
+                <>
+                  <div className="absolute inset-0 bg-black/50 pointer-events-none"></div>
+                  
+                  <div 
+                    className="absolute border-2 border-white shadow-[0_0_0_9999px_rgba(0,0,0,0.5)] cursor-move"
+                    style={{
+                      ...getOverlayStyle(),
+                      touchAction: 'none'
+                    }}
+                    onMouseDown={(e) => handleStart(e, 'move')}
+                    onTouchStart={(e) => handleStart(e, 'move')}
+                  >
+                    {/* Grid lines */}
+                    <div className="absolute inset-0 flex flex-col justify-evenly opacity-40 pointer-events-none">
+                      <div className="h-px bg-white w-full shadow-sm"></div>
+                      <div className="h-px bg-white w-full shadow-sm"></div>
+                    </div>
+                    <div className="absolute inset-0 flex flex-row justify-evenly opacity-40 pointer-events-none">
+                      <div className="w-px bg-white h-full shadow-sm"></div>
+                      <div className="w-px bg-white h-full shadow-sm"></div>
+                    </div>
+
+                    {/* Corners Handles */}
+                    {['nw', 'ne', 'sw', 'se'].map((pos) => (
+                      <div
+                        key={pos}
+                        className={`absolute w-5 h-5 bg-domessin-primary border-2 border-white rounded-full z-10 shadow-sm
+                          ${pos.includes('n') ? '-top-2.5' : '-bottom-2.5'}
+                          ${pos.includes('w') ? '-left-2.5' : '-right-2.5'}
+                          cursor-${pos}-resize hover:scale-110 transition-transform
+                        `}
+                        onMouseDown={(e) => handleStart(e, pos)}
+                        onTouchStart={(e) => handleStart(e, pos)}
+                      />
+                    ))}
                   </div>
-                  <div className="absolute inset-0 flex flex-row justify-evenly opacity-30 pointer-events-none">
-                    <div className="w-px bg-white h-full"></div>
-                    <div className="w-px bg-white h-full"></div>
-                  </div>
+                </>
+              )}
+           </div>
+        </div>
 
-                  {/* Corners Handles */}
-                  {['nw', 'ne', 'sw', 'se'].map((pos) => (
-                    <div
-                      key={pos}
-                      className={`absolute w-6 h-6 bg-domessin-primary border-2 border-white rounded-full z-10
-                        ${pos.includes('n') ? '-top-3' : '-bottom-3'}
-                        ${pos.includes('w') ? '-left-3' : '-right-3'}
-                        cursor-${pos}-resize
-                      `}
-                      onMouseDown={(e) => handleStart(e, pos)}
-                      onTouchStart={(e) => handleStart(e, pos)}
-                    />
-                  ))}
-                </div>
-              </>
-            )}
-         </div>
-      </div>
+        {/* Footer / Toolbar */}
+        <div className="h-16 bg-slate-900 border-t border-slate-700 flex items-center justify-center space-x-8 shrink-0">
+          <button 
+            onClick={() => setIsCorrected(!isCorrected)}
+            className={`flex flex-col items-center space-y-1 px-3 py-1 rounded-lg transition-colors ${isCorrected ? 'text-domessin-secondary' : 'text-slate-500 hover:text-slate-300'}`}
+          >
+            <Wand2 className="w-5 h-5" />
+            <span className="text-[10px] font-bold uppercase tracking-wider">Retouche</span>
+          </button>
 
-      {/* Footer / Toolbar */}
-      <div className="h-20 bg-slate-900 border-t border-slate-800 flex items-center justify-center space-x-6 shrink-0">
-        <button 
-          onClick={() => setIsCorrected(!isCorrected)}
-          className={`flex flex-col items-center space-y-1 px-4 py-2 rounded-lg transition-colors ${isCorrected ? 'text-domessin-secondary bg-slate-800' : 'text-slate-400 hover:text-slate-200'}`}
-        >
-          <Wand2 className="w-6 h-6" />
-          <span className="text-xs font-medium">Auto-Magic</span>
-        </button>
+          <div className="w-px h-8 bg-slate-800"></div>
 
-        <div className="w-px h-10 bg-slate-700"></div>
+          <button 
+             onClick={() => {
+                if (originalImage) {
+                   const cropSize = Math.min(originalImage.width, originalImage.height) * 0.8;
+                   setCrop({
+                     x: (originalImage.width - cropSize) / 2,
+                     y: (originalImage.height - cropSize) / 2,
+                     width: cropSize,
+                     height: cropSize
+                   });
+                   setIsCorrected(false);
+                }
+             }}
+             className="flex flex-col items-center space-y-1 px-3 py-1 text-slate-500 hover:text-slate-300 transition-colors"
+          >
+            <RotateCcw className="w-5 h-5" />
+            <span className="text-[10px] font-bold uppercase tracking-wider">Reset</span>
+          </button>
+        </div>
 
-        <button 
-           onClick={() => {
-              if (originalImage) {
-                 const cropSize = Math.min(originalImage.width, originalImage.height) * 0.8;
-                 setCrop({
-                   x: (originalImage.width - cropSize) / 2,
-                   y: (originalImage.height - cropSize) / 2,
-                   width: cropSize,
-                   height: cropSize
-                 });
-                 setIsCorrected(false);
-              }
-           }}
-           className="flex flex-col items-center space-y-1 px-4 py-2 text-slate-400 hover:text-slate-200"
-        >
-          <RotateCcw className="w-6 h-6" />
-          <span className="text-xs font-medium">Réinitialiser</span>
-        </button>
       </div>
     </div>
   );

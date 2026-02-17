@@ -1,8 +1,9 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Camera, Edit3, Image as ImageIcon, Download, Check, ChevronRight, UploadCloud } from 'lucide-react';
+import { Edit3, Image as ImageIcon, Download, ChevronRight, UploadCloud } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { CandidateProfile, Step } from './types';
 import { CardTemplate } from './components/CardTemplate';
+import { ImageEditor } from './components/ImageEditor';
 
 const INITIAL_PROFILE: CandidateProfile = {
   firstName: '',
@@ -28,6 +29,9 @@ export default function App() {
   const [data, setData] = useState<CandidateProfile>(INITIAL_PROFILE);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  
+  // Image Editor State
+  const [editingImage, setEditingImage] = useState<string | null>(null);
 
   // Refs for generating images (attached to off-screen elements)
   const refA4 = useRef<HTMLDivElement>(null);
@@ -35,7 +39,6 @@ export default function App() {
   const refSquare = useRef<HTMLDivElement>(null);
 
   // Inject fonts manually to allow html-to-image to capture them consistently.
-  // This acts as a backup to ensure fonts are "self-hosted" within the generated SVG/Image context.
   useEffect(() => {
     const fontUrl = 'https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Open+Sans:ital,wght@0,400;0,600;1,400&family=Yeseva+One&display=swap';
     
@@ -60,10 +63,20 @@ export default function App() {
   const processFile = (file: File) => {
     if (file && file.type.startsWith('image/')) {
       const url = URL.createObjectURL(file);
-      setData(prev => ({ ...prev, photoUrl: url }));
+      // Instead of setting data directly, we open the editor
+      setEditingImage(url);
     } else {
       alert("Format de fichier non supporté. Veuillez utiliser une image (JPEG, PNG).");
     }
+  };
+
+  const handleEditorSave = (newUrl: string) => {
+    setData(prev => ({ ...prev, photoUrl: newUrl }));
+    setEditingImage(null);
+  };
+
+  const handleEditorCancel = () => {
+    setEditingImage(null);
   };
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -108,25 +121,15 @@ export default function App() {
 
     if (ref.current) {
       try {
-        // Ensure fonts are ready before we start
         await document.fonts.ready;
-
-        // Small delay to ensure rendering is stable and layout is finalized
         await new Promise(resolve => setTimeout(resolve, 100));
 
         const dataUrl = await toPng(ref.current, { 
-          // cacheBust can break blob URLs for images, keeping it false is safer for simple usage
           cacheBust: false, 
-          pixelRatio: 2, // High res
+          pixelRatio: 2,
           skipAutoScale: true,
-          backgroundColor: '#ffffff', // Ensure white background
-          
-          // Filter out the external Google Fonts stylesheet from the cloned node.
-          // Since we have 'crossorigin="anonymous"' in index.html, html-to-image CAN read the global rules safely,
-          // but we also have the manual style injection above. 
-          // Filtering the remote link prevents duplication and potential timeouts.
+          backgroundColor: '#ffffff',
           filter: (node) => {
-             // Check if it's a valid element and a link tag
              if (node instanceof HTMLElement && node.tagName === 'LINK' && (node as HTMLLinkElement).rel === 'stylesheet') {
                const href = (node as HTMLLinkElement).href;
                if (href && href.includes('fonts.googleapis.com')) {
@@ -138,8 +141,6 @@ export default function App() {
         });
         
         const link = document.createElement('a');
-        
-        // Sanitize names for filename
         const safeLastName = (data.lastName || 'Nom').trim().replace(/[^a-zA-Z0-9àâäéèêëîïôöùûüçñÀÂÄÉÈÊËÎÏÔÖÙÛÜÇÑ]/g, '_');
         const safeFirstName = (data.firstName || 'Prenom').trim().replace(/[^a-zA-Z0-9àâäéèêëîïôöùûüçñÀÂÄÉÈÊËÎÏÔÖÙÛÜÇÑ]/g, '_');
         
@@ -161,6 +162,17 @@ export default function App() {
     { id: Step.COLLECT, label: 'Édition', icon: <Edit3 className="w-5 h-5" /> },
     { id: Step.GENERATE, label: 'Export', icon: <Download className="w-5 h-5" /> },
   ];
+
+  // If Editing, show Modal
+  if (editingImage) {
+    return (
+      <ImageEditor 
+        imageSrc={editingImage} 
+        onSave={handleEditorSave} 
+        onCancel={handleEditorCancel} 
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col font-sans bg-slate-950 text-slate-100">
@@ -258,7 +270,6 @@ export default function App() {
                   {data.photoUrl ? (
                     <div className="relative">
                       <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-slate-600 shadow-xl mx-auto">
-                        {/* Preview with same object-top cropping as the final card */}
                         <img src={data.photoUrl} alt="Preview" className="w-full h-full object-cover object-top" />
                       </div>
                       <div className="absolute -bottom-2 -right-2 bg-slate-900 rounded-full p-2 border border-slate-700 shadow-sm text-slate-300">
@@ -274,7 +285,7 @@ export default function App() {
                         Glissez votre photo ici <br/>
                         <span className="text-xs font-normal opacity-70">ou cliquez pour parcourir</span>
                       </p>
-                      <p className="text-xs mt-2 text-slate-600">JPG, PNG, WEBP (Recadrage auto portrait)</p>
+                      <p className="text-xs mt-2 text-slate-600">JPG, PNG, WEBP</p>
                     </div>
                   )}
                 </div>

@@ -22,6 +22,7 @@ export const CardTemplate = forwardRef<HTMLDivElement, CardTemplateProps>(({ dat
   // Dynamic styles based on format
   const isVertical = format === 'story';
   const isSquare = format === 'square';
+  const isA4 = format === 'a4';
   
   // Font scaling factor
   const baseSize = isVertical ? 'text-3xl' : 'text-xl';
@@ -50,7 +51,7 @@ export const CardTemplate = forwardRef<HTMLDivElement, CardTemplateProps>(({ dat
       </div>
 
       {/* Main Content */}
-      <div className={`flex-1 p-8 pb-12 ${isVertical ? 'flex flex-col gap-10' : 'grid grid-cols-12 gap-8'}`}>
+      <div className={`flex-1 p-8 ${isA4 ? 'pb-32' : 'pb-12'} ${isVertical ? 'flex flex-col gap-10' : 'grid grid-cols-12 gap-8'}`}>
         
         {/* Left Column (Photo + Name) */}
         <div className={`${isVertical ? 'w-full text-center' : 'col-span-4 flex flex-col items-center text-center'} pt-4`}>
@@ -82,7 +83,7 @@ export const CardTemplate = forwardRef<HTMLDivElement, CardTemplateProps>(({ dat
               {data.bioTitle || "Qui suis-je ?"}
             </h3>
             <div className="bg-slate-50 p-6 rounded-2xl shadow-sm">
-              <p className={`${baseSize} font-sans text-slate-700 leading-relaxed whitespace-pre-wrap`}>
+              <p className={`${baseSize} font-sans text-slate-700 leading-relaxed whitespace-pre-wrap text-justify`}>
                 {data.bio || "Section à remplir..."}
               </p>
             </div>
@@ -94,7 +95,7 @@ export const CardTemplate = forwardRef<HTMLDivElement, CardTemplateProps>(({ dat
               {data.goalsTitle || "Mes envies pour la commune"}
             </h3>
             <div className="bg-slate-50 p-6 rounded-2xl shadow-sm">
-              <p className={`${baseSize} font-sans text-slate-700 leading-relaxed whitespace-pre-wrap`}>
+              <p className={`${baseSize} font-sans text-slate-700 leading-relaxed whitespace-pre-wrap text-justify`}>
                 {data.goals || "Section à remplir..."}
               </p>
             </div>
@@ -106,7 +107,7 @@ export const CardTemplate = forwardRef<HTMLDivElement, CardTemplateProps>(({ dat
               {data.commissionsTitle || "Les commissions"}
             </h3>
             <div className="bg-slate-50 p-6 rounded-2xl shadow-sm">
-              <p className={`${baseSize} font-sans text-slate-700 leading-relaxed whitespace-pre-wrap`}>
+              <p className={`${baseSize} font-sans text-slate-700 leading-relaxed whitespace-pre-wrap text-justify`}>
                 {data.commissions || "Section à remplir..."}
               </p>
             </div>

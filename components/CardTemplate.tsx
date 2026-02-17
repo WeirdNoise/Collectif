@@ -25,10 +25,18 @@ export const CardTemplate = forwardRef<HTMLDivElement, CardTemplateProps>(({ dat
   const isA4 = format === 'a4';
   
   // Font scaling factor
-  const baseSize = isVertical ? 'text-3xl' : 'text-xl';
-  // Title needs to be MUCH bigger now and original font
-  const titleSize = isVertical ? 'text-7xl' : isSquare ? 'text-5xl' : 'text-5xl';
+  // A4 uses text-lg (18px) to allow more content to fit vertically compared to Square
+  const baseSize = isVertical ? 'text-3xl' : isA4 ? 'text-lg' : 'text-xl';
+  
+  // Title scaling
+  // A4 uses text-5xl to match the visual weight of Square, ensuring the logo looks identical
+  const titleSize = isVertical ? 'text-7xl' : 'text-5xl';
+  
   const nameSize = isVertical ? 'text-6xl' : 'text-4xl';
+  
+  // Layout spacing adjustments for A4 to prevent overflow
+  const sectionGap = isA4 ? 'gap-4' : 'gap-6';
+  const bottomPadding = isA4 ? 'pb-48' : 'pb-12';
 
   return (
     <div 
@@ -46,12 +54,12 @@ export const CardTemplate = forwardRef<HTMLDivElement, CardTemplateProps>(({ dat
         <h1 className={`${titleSize} font-original text-white text-center leading-none drop-shadow-md`}>
           Une alternative <br/> pour Domessin
         </h1>
-        {/* Underline in Secondary Yellow */}
+        {/* Underline in Secondary Yellow - Present on all formats */}
         <div className="h-2 w-32 bg-domessin-secondary mt-4 rounded-full"></div>
       </div>
 
       {/* Main Content */}
-      <div className={`flex-1 p-8 ${isA4 ? 'pb-56' : 'pb-12'} ${isVertical ? 'flex flex-col gap-10' : 'grid grid-cols-12 gap-8'}`}>
+      <div className={`flex-1 p-8 ${bottomPadding} ${isVertical ? 'flex flex-col gap-10' : 'grid grid-cols-12 gap-8'}`}>
         
         {/* Left Column (Photo + Name) */}
         <div className={`${isVertical ? 'w-full text-center' : 'col-span-4 flex flex-col items-center text-center'} pt-4`}>
@@ -75,7 +83,7 @@ export const CardTemplate = forwardRef<HTMLDivElement, CardTemplateProps>(({ dat
         </div>
 
         {/* Right Column (Content) - Using cleaner cards */}
-        <div className={`${isVertical ? 'w-full px-4' : 'col-span-8 pr-4'} flex flex-col justify-center gap-6 relative`}>
+        <div className={`${isVertical ? 'w-full px-4' : 'col-span-8 pr-4'} flex flex-col justify-center ${sectionGap} relative`}>
           
           {/* Section 1 */}
           <div className="relative">

@@ -20,7 +20,7 @@ const INITIAL_PROFILE: CandidateProfile = {
 const MAX_CHARS = {
   bio: 350,
   goals: 350,
-  commissions: 350
+  commissions: 250
 };
 
 export default function App() {

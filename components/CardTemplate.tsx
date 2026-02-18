@@ -53,7 +53,7 @@ export const CardTemplate = forwardRef<HTMLDivElement, CardTemplateProps>(({ dat
       {/* Added flex-shrink-0 to prevent layout squashing on A4 */}
       <div className="bg-domessin-primary min-h-[15%] flex-shrink-0 flex flex-col items-center justify-center px-8 relative py-8">
         <h1 className={`${titleSize} font-original text-white text-center leading-none drop-shadow-md`}>
-          Une alternative <br/> pour Domessin
+          Une Alternative <br/> pour Domessin
         </h1>
         {/* Underline in Secondary Yellow - Present on all formats */}
         <div className="h-2 w-32 bg-domessin-secondary mt-4 rounded-full"></div>
